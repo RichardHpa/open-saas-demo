@@ -1,4 +1,12 @@
-import { type DailyStats, type GptResponse, type User, type PageViewSource, type Task, type File } from 'wasp/entities';
+import {
+  type DailyStats,
+  type GptResponse,
+  type User,
+  type PageViewSource,
+  type Task,
+  type File,
+  type Team,
+} from 'wasp/entities';
 import { HttpError } from 'wasp/server';
 import {
   type GetGptResponses,
@@ -7,6 +15,7 @@ import {
   type GetAllTasksByUser,
   type GetAllFilesByUser,
   type GetDownloadFileSignedURL,
+  type GetAllTeamsForUser,
 } from 'wasp/server/operations';
 import { getDownloadFileSignedURLFromS3 } from './file-upload/s3Utils.js';
 
@@ -19,7 +28,7 @@ type DailyStatsValues = {
   weeklyStats: DailyStatsWithSources[];
 };
 
-export const getGptResponses: GetGptResponses<void, GptResponse[]> = async (args, context) => {
+export const getGptResponses: GetGptResponses<void, GptResponse[]> = async (_args, context) => {
   if (!context.user) {
     throw new HttpError(401);
   }
@@ -163,4 +172,42 @@ export const getPaginatedUsers: GetPaginatedUsers<GetPaginatedUsersInput, GetPag
     users: queryResults,
     totalPages,
   };
+};
+
+type GetAllTeamsForUserInput = {
+  userId: string | number;
+};
+type GetAllTeamsForUserOutput = {
+  team: Team;
+  status: string;
+};
+
+export const getAllTeamsForUser: GetAllTeamsForUser<GetAllTeamsForUserInput, GetAllTeamsForUserOutput[]> = async (
+  args,
+  context
+) => {
+  // if your not logged in
+  if (!context.user) {
+    throw new HttpError(401);
+  }
+
+  // if you are not the user you are trying to get the teams for, we want to allow admins to get the teams for any user
+  if (context.user.id !== args.userId) {
+    throw new HttpError(401);
+  }
+
+  const userId = args.userId;
+  const areTeamMembersOf = await context.entities.TeamMember.findMany({
+    where: {
+      userId,
+    },
+    select: {
+      team: true,
+      status: true,
+    },
+  });
+
+  console.log(areTeamMembersOf);
+
+  return areTeamMembersOf;
 };

@@ -345,12 +345,22 @@ export const createTeam: CreateTeam<teamArgs, Team> = async ({ name }, context) 
     throw new HttpError(401);
   }
 
-  const task = await context.entities.Team.create({
+  const team = await context.entities.Team.create({
     data: {
       name,
       admin: { connect: { id: context.user.id } },
     },
   });
 
-  return task;
+  const teamId = team.id;
+
+  await context.entities.TeamMember.create({
+    data: {
+      team: { connect: { id: teamId } },
+      user: { connect: { id: context.user.id } },
+      status: 'ADMIN',
+    },
+  });
+
+  return team;
 };

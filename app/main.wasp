@@ -18,7 +18,7 @@ app OpenSaaS {
         // plausible has script extension `script.local.js` for local development
         "<script defer data-domain='<your-site-id>' src='https://plausible.io/js/script.local.js'></script>",
         // google analytics only needs one script and will automatically detect if you are in dev mode 
-        "<!-- Google tag (gtag.js) --><script>...</script>",
+        // "<!-- Google tag (gtag.js) --><script>...</script>",
         // material ui stuff
         // "<link rel='preconnect' href='https://fonts.googleapis.com' />"
         // "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin />",
@@ -104,6 +104,7 @@ entity User {=psl
   tasks                     Task[]
   files                     File[]
   teams                     Team[]
+  teamMembers               TeamMember[]
 psl=}
 
 entity GptResponse {=psl
@@ -183,6 +184,18 @@ entity Team {=psl
   name                      String
   admin                     User            @relation(fields: [userId], references: [id])
   userId                    Int
+  createdAt                 DateTime        @default(now())
+  members                   TeamMember[]
+psl=}
+
+entity TeamMember {=psl
+  id                        String          @id @default(uuid())
+  user                      User            @relation(fields: [userId], references: [id])
+  userId                    Int
+  team                      Team            @relation(fields: [teamId], references: [id])
+  teamId                    String
+  // Doesnt seem like wasp supports enumbs yet
+  status                    String            @default("PENDING")
   createdAt                 DateTime        @default(now())
 psl=}
 
@@ -332,7 +345,7 @@ page AdminUIButtonsPage {
 
 action createTeam {
   fn: import { createTeam } from "@src/server/actions.js",
-  entities: [Team]
+  entities: [Team, TeamMember]
 }
 
 action generateGptResponse {
@@ -406,6 +419,11 @@ query getDailyStats {
 query getPaginatedUsers {
   fn: import { getPaginatedUsers } from "@src/server/queries.js",
   entities: [User]
+}
+
+query getAllTeamsForUser {
+  fn: import { getAllTeamsForUser } from "@src/server/queries.js",
+  entities: [Team, TeamMember]
 }
 
 /*
