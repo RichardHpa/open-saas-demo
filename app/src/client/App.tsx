@@ -4,6 +4,9 @@ import './Main.css';
 import AppNavBar from './components/AppNavBar';
 import { useMemo, useEffect, ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
+import { ThemeProvider, createTheme } from '@mui/material';
+
+const theme = createTheme();
 
 /**
  * use this component to wrap all child components
@@ -42,7 +45,7 @@ export default function App({ children }: { children: ReactNode }) {
   }, [location]);
 
   return (
-    <>
+    <ThemeProvider theme={theme}>
       <div className='min-h-screen dark:text-white dark:bg-boxdark-2'>
         {isAdminDashboard ? (
           <>{children}</>
@@ -53,6 +56,6 @@ export default function App({ children }: { children: ReactNode }) {
           </>
         )}
       </div>
-    </>
+    </ThemeProvider>
   );
 }

@@ -1,4 +1,4 @@
-import { type User, type Task, type File } from 'wasp/entities';
+import { type User, type Task, type File, type Team } from 'wasp/entities';
 import { HttpError } from 'wasp/server';
 import {
   type GenerateGptResponse,
@@ -9,6 +9,7 @@ import {
   type DeleteTask,
   type UpdateTask,
   type CreateFile,
+  type CreateTeam,
 } from 'wasp/server/operations';
 import Stripe from 'stripe';
 import type { GeneratedSchedule, StripePaymentResult } from '../shared/types';
@@ -333,4 +334,23 @@ export const updateCurrentUser: UpdateCurrentUser<Partial<User>, User> = async (
     },
     data: user,
   });
+};
+
+type teamArgs = {
+  name: string;
+};
+
+export const createTeam: CreateTeam<teamArgs, Team> = async ({ name }, context) => {
+  if (!context.user) {
+    throw new HttpError(401);
+  }
+
+  const task = await context.entities.Team.create({
+    data: {
+      name,
+      admin: { connect: { id: context.user.id } },
+    },
+  });
+
+  return task;
 };

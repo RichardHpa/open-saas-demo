@@ -7,16 +7,16 @@ import { AiFillCloseCircle } from 'react-icons/ai';
 import { HiBars3 } from 'react-icons/hi2';
 import logo from '../static/logo.png';
 import DropdownUser from './DropdownUser';
-import { DOCS_URL, BLOG_URL } from '../../shared/constants';
+// import { DOCS_URL, BLOG_URL } from '../../shared/constants';
 import DarkModeSwitcher from '../admin/components/DarkModeSwitcher';
 import { UserMenuItems } from '../components/UserMenuItems';
 
 const navigation = [
   { name: 'AI Scheduler (Demo App)', href: '/demo-app' },
-  { name: 'File Upload (AWS S3)', href: '/file-upload' },
-  { name: 'Pricing', href: '/pricing' },
-  { name: 'Documentation', href: DOCS_URL },
-  { name: 'Blog', href: BLOG_URL },
+  // { name: 'File Upload (AWS S3)', href: '/file-upload' },
+  // { name: 'Pricing', href: '/pricing' },
+  // { name: 'Documentation', href: DOCS_URL },
+  // { name: 'Blog', href: BLOG_URL },
 ];
 
 const NavLogo = () => <img className='h-8 w-8' src={logo} alt='Your SaaS App' />;
@@ -53,6 +53,11 @@ export default function AppNavBar() {
               {item.name}
             </a>
           ))}
+          <Link to='/teams'>
+            <div className='flex justify-end items-center duration-300 ease-in-out text-gray-900 hover:text-yellow-500 dark:text-white'>
+              Teams
+            </div>
+          </Link>
         </div>
         <div className='hidden lg:flex lg:flex-1 gap-3 justify-end items-center'>
           <ul className='flex justify-center items-center gap-2 sm:gap-4'>
@@ -102,6 +107,12 @@ export default function AppNavBar() {
                     {item.name}
                   </a>
                 ))}
+                <Link
+                  to='/teams'
+                  className='-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white hover:dark:bg-boxdark-2'
+                >
+                  <div>Teams</div>
+                </Link>
               </div>
               <div className='py-6'>
                 {isUserLoading ? null : !user ? (

@@ -18,7 +18,11 @@ app OpenSaaS {
         // plausible has script extension `script.local.js` for local development
         "<script defer data-domain='<your-site-id>' src='https://plausible.io/js/script.local.js'></script>",
         // google analytics only needs one script and will automatically detect if you are in dev mode 
-        "<!-- Google tag (gtag.js) --><script>...</script>"
+        "<!-- Google tag (gtag.js) --><script>...</script>",
+        // material ui stuff
+        // "<link rel='preconnect' href='https://fonts.googleapis.com' />"
+        // "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin />",
+        "<link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'/>",
   ],
   // 🔐 Auth out of the box! https://wasp-lang.dev/docs/auth/overview
   auth: {
@@ -99,6 +103,7 @@ entity User {=psl
   contactFormMessages       ContactFormMessage[]     
   tasks                     Task[]
   files                     File[]
+  teams                     Team[]
 psl=}
 
 entity GptResponse {=psl
@@ -173,6 +178,15 @@ entity Logs {=psl
   level                    String
 psl=}
 
+entity Team {=psl
+  id                        String          @id @default(uuid())
+  name                      String
+  admin                     User            @relation(fields: [userId], references: [id])
+  userId                    Int
+  createdAt                 DateTime        @default(now())
+psl=}
+
+
 /* 📡 These are the Wasp Routes (You can protect them easily w/ 'authRequired: true');
  * https://wasp-lang.dev/docs/tutorial/pages
  */
@@ -205,6 +219,19 @@ page PasswordResetPage {
 route EmailVerificationRoute { path: "/email-verification", to: EmailVerificationPage }
 page EmailVerificationPage {
   component: import { EmailVerification } from "@src/client/auth/EmailVerification",
+}
+
+
+route TeamsRoute { path: "/teams", to: TeamsPage}
+page TeamsPage {
+  authRequired: true,
+  component: import TeamsPage from "@src/client/app/TeamsPage"
+}
+
+route AddTeamRoute { path: "/teams/new", to: AddTeamPage}
+page AddTeamPage {
+  authRequired: true,
+  component: import AddTeamPage from "@src/client/app/AddTeamPage"
 }
 
 route DemoAppRoute { path: "/demo-app", to: DemoAppPage }
@@ -296,11 +323,17 @@ page AdminUIButtonsPage {
   component: import AdminUI from "@src/client/admin/pages/UiElements/Buttons"
 }
 
+
 /* ⛑ These are the Wasp Operations, which allow the client and server to interact:
  * https://wasp-lang.dev/docs/data-model/operations/overview
  */
 
 // 📝 Actions
+
+action createTeam {
+  fn: import { createTeam } from "@src/server/actions.js",
+  entities: [Team]
+}
 
 action generateGptResponse {
   fn: import { generateGptResponse } from "@src/server/actions.js",
