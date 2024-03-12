@@ -103,8 +103,9 @@ entity User {=psl
   contactFormMessages       ContactFormMessage[]     
   tasks                     Task[]
   files                     File[]
-  teams                     Team[]
   teamMembers               TeamMember[]
+  teamInvites               TeamInvites[]    @relation("InvidedUser")
+  invitedBy                 TeamInvites[]    @relation("InvitedBy")
 psl=}
 
 entity GptResponse {=psl
@@ -182,10 +183,9 @@ psl=}
 entity Team {=psl
   id                        String          @id @default(uuid())
   name                      String
-  admin                     User            @relation(fields: [userId], references: [id])
-  userId                    Int
   createdAt                 DateTime        @default(now())
   members                   TeamMember[]
+  invites                   TeamInvites[]
 psl=}
 
 entity TeamMember {=psl
@@ -198,6 +198,19 @@ entity TeamMember {=psl
   status                    String            @default("PENDING")
   createdAt                 DateTime        @default(now())
 psl=}
+
+entity TeamInvites {=psl
+  id                        String          @id @default(uuid())
+  invitedUser               User            @relation("InvidedUser", fields: [invitedUserId], references: [id])
+  invitedUserId              Int
+  invitedBy                 User            @relation("InvitedBy", fields: [invitedById], references: [id])
+  invitedById               Int
+  team                      Team            @relation(fields: [teamId], references: [id])
+  teamId                    String
+  token                     String
+  createdAt                 DateTime        @default(now())
+psl=}
+
 
 
 /* 📡 These are the Wasp Routes (You can protect them easily w/ 'authRequired: true');
@@ -239,6 +252,12 @@ route TeamsRoute { path: "/teams", to: TeamsPage}
 page TeamsPage {
   authRequired: true,
   component: import TeamsPage from "@src/client/app/TeamsPage"
+}
+
+route TeamRoute { path: "/teams/:teamId", to: TeamPage}
+page TeamPage {
+  authRequired: true,
+  component: import TeamPage from "@src/client/app/TeamPage"
 }
 
 route AddTeamRoute { path: "/teams/new", to: AddTeamPage}
@@ -348,6 +367,11 @@ action createTeam {
   entities: [Team, TeamMember]
 }
 
+action inviteTeamMember {
+  fn: import { inviteTeamMember } from "@src/server/actions.js",
+  entities: [User,Team, TeamMember, TeamInvites]
+}
+
 action generateGptResponse {
   fn: import { generateGptResponse } from "@src/server/actions.js",
   entities: [User, Task, GptResponse]
@@ -388,6 +412,11 @@ action createFile {
   entities: [User, File]
 }
 
+action sendVerificationEmail {
+  fn: import { sendVerificationEmail } from "@src/server/actions.js",
+  entities: [User, Team, TeamInvites]
+}
+
 
 // 📚 Queries
 
@@ -423,6 +452,11 @@ query getPaginatedUsers {
 
 query getAllTeamsForUser {
   fn: import { getAllTeamsForUser } from "@src/server/queries.js",
+  entities: [Team, TeamMember]
+}
+
+query getTeam {
+  fn: import { getTeam } from "@src/server/queries.js",
   entities: [Team, TeamMember]
 }
 

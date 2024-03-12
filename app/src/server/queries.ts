@@ -6,6 +6,7 @@ import {
   type Task,
   type File,
   type Team,
+  type TeamMember,
 } from 'wasp/entities';
 import { HttpError } from 'wasp/server';
 import {
@@ -16,6 +17,7 @@ import {
   type GetAllFilesByUser,
   type GetDownloadFileSignedURL,
   type GetAllTeamsForUser,
+  type GetTeam,
 } from 'wasp/server/operations';
 import { getDownloadFileSignedURLFromS3 } from './file-upload/s3Utils.js';
 
@@ -207,7 +209,48 @@ export const getAllTeamsForUser: GetAllTeamsForUser<GetAllTeamsForUserInput, Get
     },
   });
 
-  console.log(areTeamMembersOf);
-
   return areTeamMembersOf;
+};
+
+type GetTeamInput = {
+  teamId: string;
+};
+
+type getTeamOutput = {
+  team: Team;
+  teamMembers: {
+    user: User;
+    status: string;
+  }[];
+};
+
+export const getTeam: GetTeam<GetTeamInput, getTeamOutput> = async (args, context) => {
+  if (!context.user) {
+    throw new HttpError(401);
+  }
+
+  const team = await context.entities.Team.findFirst({
+    where: {
+      id: args.teamId,
+    },
+  });
+
+  if (!team) {
+    throw new HttpError(404);
+  }
+
+  const teamMembers = await context.entities.TeamMember.findMany({
+    where: {
+      teamId: args.teamId,
+    },
+    select: {
+      user: true,
+      status: true,
+    },
+  });
+
+  return {
+    team,
+    teamMembers,
+  };
 };

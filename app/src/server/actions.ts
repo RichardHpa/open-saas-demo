@@ -1,4 +1,6 @@
 import { type User, type Task, type File, type Team } from 'wasp/entities';
+import { emailSender } from 'wasp/server/email';
+
 import { HttpError } from 'wasp/server';
 import {
   type GenerateGptResponse,
@@ -10,6 +12,7 @@ import {
   type UpdateTask,
   type CreateFile,
   type CreateTeam,
+  type InviteTeamMember,
 } from 'wasp/server/operations';
 import Stripe from 'stripe';
 import type { GeneratedSchedule, StripePaymentResult } from '../shared/types';
@@ -17,6 +20,7 @@ import { fetchStripeCustomer, createStripeCheckoutSession } from './payments/str
 import { TierIds } from '../shared/constants.js';
 import { getUploadFileSignedURLFromS3 } from './file-upload/s3Utils.js';
 import OpenAI from 'openai';
+import { createRandomKey } from '../shared/createRandomKey';
 
 const openai = setupOpenAI();
 function setupOpenAI() {
@@ -348,7 +352,6 @@ export const createTeam: CreateTeam<teamArgs, Team> = async ({ name }, context) 
   const team = await context.entities.Team.create({
     data: {
       name,
-      admin: { connect: { id: context.user.id } },
     },
   });
 
@@ -363,4 +366,168 @@ export const createTeam: CreateTeam<teamArgs, Team> = async ({ name }, context) 
   });
 
   return team;
+};
+
+export const inviteTeamMember: InviteTeamMember = async ({ email, teamId }, context) => {
+  if (!context.user) {
+    throw new HttpError(401);
+  }
+  // check if you are trying to invite yourself
+  if (email === context.user.email) {
+    throw new HttpError(400, 'You cannot invite yourself');
+  }
+  // create the unique token
+  const token = await createRandomKey();
+
+  const team = await context.entities.Team.findFirst({
+    where: {
+      id: teamId,
+    },
+    select: {
+      name: true,
+    },
+  });
+
+  if (!team) {
+    throw new HttpError(404, 'Team not found');
+  }
+
+  // check if the user already exists
+  const user = await context.entities.User.findFirst({
+    where: {
+      email,
+    },
+  });
+
+  let resolvedUser = user;
+  if (user) {
+    // check if the user is already a member of the team
+    const teamMember = await context.entities.TeamMember.findFirst({
+      where: {
+        teamId,
+        userId: user.id,
+      },
+    });
+
+    if (teamMember) {
+      throw new HttpError(400, 'User is already a member of the team');
+    }
+  } else {
+    // create a new user and send an invite
+    const newUser = await context.entities.User.create({
+      data: {
+        email,
+      },
+    });
+    resolvedUser = newUser;
+  }
+
+  if (!resolvedUser) {
+    throw new HttpError(500, 'Something has gone wrong');
+  }
+
+  await context.entities.TeamMember.create({
+    data: {
+      team: { connect: { id: teamId } },
+      user: { connect: { id: resolvedUser.id } },
+      status: 'PENDING',
+    },
+  });
+
+  await context.entities.TeamInvites.create({
+    data: {
+      invitedUser: { connect: { id: resolvedUser.id } },
+      team: { connect: { id: teamId } },
+      invitedBy: { connect: { id: context.user.id } },
+      token,
+    },
+  });
+
+  // send verification email
+  await emailSender.send({
+    to: email,
+    subject: `You have been invited to join the team ${team.name}`,
+    text: 'Hello world',
+    html: 'Hello <strong>world</strong>',
+  });
+
+  return {
+    email,
+    status: 'PENDING',
+  };
+};
+
+export const sendVerificationEmail = async (
+  {
+    userId,
+    teamId,
+  }: {
+    userId: number;
+    teamId: string;
+  },
+  context: any
+) => {
+  if (!context.user) {
+    throw new HttpError(401);
+  }
+
+  const user = await context.entities.User.findFirst({
+    where: {
+      id: userId,
+    },
+  });
+
+  if (!user) {
+    throw new HttpError(404, 'User not found');
+  }
+
+  const team = await context.entities.Team.findFirst({
+    where: {
+      id: teamId,
+    },
+  });
+
+  if (!team) {
+    throw new HttpError(404, 'Team not found');
+  }
+
+  // weird bug that means I cant delete this in 1 line and have to get it first then delete it
+  const existingInvite = await context.entities.TeamInvites.findFirst({
+    where: {
+      invitedUserId: user.id,
+      teamId,
+    },
+  });
+
+  if (existingInvite) {
+    await context.entities.TeamInvites.delete({
+      where: {
+        id: existingInvite.id,
+      },
+    });
+  }
+
+  // create a new invite
+  const newToken = await createRandomKey();
+  await context.entities.TeamInvites.create({
+    data: {
+      invitedUser: { connect: { id: user.id } },
+      team: { connect: { id: teamId } },
+      invitedBy: { connect: { id: context.user.id } },
+      token: newToken,
+    },
+  });
+
+  // send verification email
+  await emailSender.send({
+    to: user.email,
+    subject: `You have been invited to join the team ${team.name}`,
+    text: 'Hello world',
+    html: 'Hello <strong>world</strong>',
+  });
+
+  return {
+    email: user.email,
+    status: 'PENDING',
+  };
 };

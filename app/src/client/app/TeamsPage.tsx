@@ -26,7 +26,6 @@ export default function TeamsPage({ user }: { user: User }) {
     userId: user.id,
   });
 
-  console.log(teams);
   return (
     <Container maxWidth='md'>
       <Box sx={{ paddingTop: 4 }}>
@@ -51,12 +50,9 @@ export default function TeamsPage({ user }: { user: User }) {
                 <TableBody>
                   {teams.map((team) => (
                     <TableRow key={team.team.id}>
-                      <TableCell>
-                        {team.team.name}{' '}
-                        {team.status === 'ADMIN' && <Chip label='Admin' color='primary' size='small' />}
-                      </TableCell>
+                      <TableCell>{team.team.name}</TableCell>
                       <TableCell align='right'>
-                        <Button component={Link} to='/'>
+                        <Button component={Link} to={`teams/${team.team.id}`}>
                           View
                         </Button>
                       </TableCell>
