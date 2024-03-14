@@ -6,7 +6,7 @@ import {
   type Task,
   type File,
   type Team,
-  type TeamMember,
+  type TeamInvites,
 } from 'wasp/entities';
 import { HttpError } from 'wasp/server';
 import {
@@ -18,6 +18,7 @@ import {
   type GetDownloadFileSignedURL,
   type GetAllTeamsForUser,
   type GetTeam,
+  type GetInvitesForUser,
 } from 'wasp/server/operations';
 import { getDownloadFileSignedURLFromS3 } from './file-upload/s3Utils.js';
 
@@ -213,7 +214,7 @@ export const getAllTeamsForUser: GetAllTeamsForUser<GetAllTeamsForUserInput, Get
 };
 
 type GetTeamInput = {
-  teamId: string;
+  teamId: number;
 };
 
 type getTeamOutput = {
@@ -222,6 +223,7 @@ type getTeamOutput = {
     user: User;
     status: string;
   }[];
+  invitedMembers: TeamInvites[];
 };
 
 export const getTeam: GetTeam<GetTeamInput, getTeamOutput> = async (args, context) => {
@@ -249,8 +251,43 @@ export const getTeam: GetTeam<GetTeamInput, getTeamOutput> = async (args, contex
     },
   });
 
+  const invitedMembers = await context.entities.TeamInvites.findMany({
+    where: {
+      teamId: args.teamId,
+    },
+  });
+
   return {
     team,
     teamMembers,
+    invitedMembers,
   };
+};
+
+// look at types later
+export const getInvitesForUser: GetInvitesForUser<void, any[]> = async (_args, context) => {
+  if (!context.user) {
+    throw new HttpError(401);
+  }
+
+  if (context.user.onBoarded === false) {
+    return await context.entities.TeamInvites.findMany({
+      where: {
+        invitedUserEmail: context.user.email,
+      },
+      include: {
+        team: true,
+        invitedBy: true,
+      },
+    });
+  }
+
+  return await context.entities.TeamInvites.findMany({
+    where: {
+      invitedUserId: context.user.id,
+    },
+    include: {
+      team: true,
+    },
+  });
 };

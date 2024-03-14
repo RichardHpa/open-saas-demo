@@ -19,6 +19,7 @@ export function createRandomUser() {
     createdAt: faker.date.between({ from: new Date('2023-01-01'), to: new Date() }),
     lastActiveTimestamp: faker.date.recent(),
     isAdmin: false,
+    onBoarded: false,
     stripeId: `cus_${faker.string.uuid()}`,
     hasPaid: faker.helpers.arrayElement([true, false]),
     sendEmail: false,

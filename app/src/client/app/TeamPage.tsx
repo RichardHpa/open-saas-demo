@@ -22,7 +22,7 @@ import type { RouteComponentProps } from 'react-router-dom';
 import type { FC } from 'react';
 
 interface InviteUserFormProps {
-  teamId: string;
+  teamId: number;
 }
 
 const InviteUserForm: FC<InviteUserFormProps> = ({ teamId }) => {
@@ -61,9 +61,12 @@ const InviteUserForm: FC<InviteUserFormProps> = ({ teamId }) => {
   );
 };
 
-const TeamPage = (props: RouteComponentProps<{ teamId: string }>) => {
+const TeamPage = (props: any) => {
+  const user = props.user;
+
+  const parsedTeamId = Number(props.match.params.teamId);
   const { data: team, isLoading } = useQuery(getTeam, {
-    teamId: props.match.params.teamId,
+    teamId: parsedTeamId,
   });
 
   if (isLoading) {
@@ -74,14 +77,13 @@ const TeamPage = (props: RouteComponentProps<{ teamId: string }>) => {
     return <Container maxWidth='md'>Team not found</Container>;
   }
 
-  const pendingInvites = team.teamMembers.filter((member) => member.status === 'PENDING');
-  const acceptedMembers = team.teamMembers.filter((member) => member.status !== 'PENDING');
+  // check if you are an admin of the team
+  const isAdmin = team.teamMembers.some((member) => member.user.id === user.id && member.status === 'ADMIN');
 
-  const handleResendInvite = async (userId: number) => {
-    console.log('send invite');
+  const handleResendInvite = async (email: string) => {
+    if (!email) return;
     try {
-      await sendVerificationEmail({ userId, teamId: team.team.id });
-      console.log('sent');
+      await sendVerificationEmail({ email, teamId: team.team.id });
     } catch (err) {
       console.error(err);
       window.alert('Failed to resend invite');
@@ -97,15 +99,17 @@ const TeamPage = (props: RouteComponentProps<{ teamId: string }>) => {
               <Grid item>
                 <Typography variant='h4'>{team.team.name}</Typography>
               </Grid>
-              <Grid item>
-                <Button color='error' variant='contained'>
-                  Delete Team
-                </Button>
-              </Grid>
+              {isAdmin && (
+                <Grid item>
+                  <Button color='error' variant='contained'>
+                    Delete Team
+                  </Button>
+                </Grid>
+              )}
             </Grid>
           </div>
 
-          <InviteUserForm teamId={props.match.params.teamId} />
+          {isAdmin && <InviteUserForm teamId={parsedTeamId} />}
 
           <TableContainer component={Paper}>
             <Table>
@@ -117,7 +121,7 @@ const TeamPage = (props: RouteComponentProps<{ teamId: string }>) => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {acceptedMembers.map((member) => (
+                {team.teamMembers.map((member) => (
                   <TableRow key={member.user.id}>
                     <TableCell>{member.user.username}</TableCell>
                     <TableCell>{member.user.email}</TableCell>
@@ -128,7 +132,7 @@ const TeamPage = (props: RouteComponentProps<{ teamId: string }>) => {
             </Table>
           </TableContainer>
 
-          {pendingInvites.length > 0 && (
+          {team?.invitedMembers.length > 0 && (
             <Box>
               <Typography variant='h5' gutterBottom>
                 Pending Invites
@@ -142,20 +146,19 @@ const TeamPage = (props: RouteComponentProps<{ teamId: string }>) => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {pendingInvites.map((member) => (
-                      <TableRow key={member.user.id}>
-                        <TableCell>{member.user.email}</TableCell>
+                    {team.invitedMembers.map((member) => (
+                      <TableRow key={member.id}>
+                        {/* <TableCell>{member.user.email || member.invitedUserEmail}</TableCell> */}
+                        <TableCell>{member.invitedUserEmail}</TableCell>
                         <TableCell align='right'>
-                          {member.status === 'PENDING' && (
-                            <Button
-                              variant='contained'
-                              startIcon={<MailOutlineIcon />}
-                              size='small'
-                              onClick={() => handleResendInvite(member.user.id)}
-                            >
-                              Resend Invite
-                            </Button>
-                          )}
+                          <Button
+                            variant='contained'
+                            startIcon={<MailOutlineIcon />}
+                            size='small'
+                            onClick={() => handleResendInvite(member.invitedUserEmail || '')}
+                          >
+                            Resend Invite
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

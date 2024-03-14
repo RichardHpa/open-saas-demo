@@ -91,6 +91,7 @@ entity User {=psl
   createdAt                 DateTime        @default(now())
   lastActiveTimestamp       DateTime        @default(now())
   isAdmin                   Boolean         @default(false)
+  onBoarded                 Boolean         @default(false)
   stripeId                  String? 
   checkoutSessionId         String?
   hasPaid                   Boolean         @default(false)
@@ -99,6 +100,8 @@ entity User {=psl
   sendEmail                 Boolean         @default(false)
   datePaid                  DateTime?
   credits                   Int             @default(3)
+
+
   gptResponses              GptResponse[]
   contactFormMessages       ContactFormMessage[]     
   tasks                     Task[]
@@ -181,7 +184,7 @@ entity Logs {=psl
 psl=}
 
 entity Team {=psl
-  id                        String          @id @default(uuid())
+  id                        Int             @id @default(autoincrement())
   name                      String
   createdAt                 DateTime        @default(now())
   members                   TeamMember[]
@@ -193,20 +196,21 @@ entity TeamMember {=psl
   user                      User            @relation(fields: [userId], references: [id])
   userId                    Int
   team                      Team            @relation(fields: [teamId], references: [id])
-  teamId                    String
+  teamId                    Int
   // Doesnt seem like wasp supports enumbs yet
-  status                    String            @default("PENDING")
+  status                    String          @default("PENDING")
   createdAt                 DateTime        @default(now())
 psl=}
 
 entity TeamInvites {=psl
   id                        String          @id @default(uuid())
-  invitedUser               User            @relation("InvidedUser", fields: [invitedUserId], references: [id])
-  invitedUserId              Int
+  invitedUser               User?           @relation("InvidedUser", fields: [invitedUserId], references: [id])
+  invitedUserId             Int?
+  invitedUserEmail          String?
   invitedBy                 User            @relation("InvitedBy", fields: [invitedById], references: [id])
   invitedById               Int
   team                      Team            @relation(fields: [teamId], references: [id])
-  teamId                    String
+  teamId                    Int
   token                     String
   createdAt                 DateTime        @default(now())
 psl=}
@@ -254,16 +258,24 @@ page TeamsPage {
   component: import TeamsPage from "@src/client/app/TeamsPage"
 }
 
+route AddTeamRoute { path: "/teams/new", to: AddTeamPage}
+page AddTeamPage {
+  authRequired: true,
+  component: import AddTeamPage from "@src/client/app/AddTeamPage"
+}
+
 route TeamRoute { path: "/teams/:teamId", to: TeamPage}
 page TeamPage {
   authRequired: true,
   component: import TeamPage from "@src/client/app/TeamPage"
 }
 
-route AddTeamRoute { path: "/teams/new", to: AddTeamPage}
-page AddTeamPage {
-  authRequired: true,
-  component: import AddTeamPage from "@src/client/app/AddTeamPage"
+
+
+route AcceptTeamInviteRoute { path: "/teams/invite/:token", to: AcceptTeamInvitePage}
+page AcceptTeamInvitePage {
+  component: import AcceptTeamInvitePage from "@src/client/app/AcceptTeamInvitePage"
+
 }
 
 route DemoAppRoute { path: "/demo-app", to: DemoAppPage }
@@ -417,6 +429,10 @@ action sendVerificationEmail {
   entities: [User, Team, TeamInvites]
 }
 
+action acceptTeamInvite {
+  fn: import { acceptTeamInvite } from "@src/server/actions.js",
+  entities: [User, Team, TeamMember, TeamInvites]
+}
 
 // 📚 Queries
 
@@ -457,7 +473,12 @@ query getAllTeamsForUser {
 
 query getTeam {
   fn: import { getTeam } from "@src/server/queries.js",
-  entities: [Team, TeamMember]
+  entities: [Team, TeamMember, TeamInvites]
+}
+
+query getInvitesForUser {
+  fn: import { getInvitesForUser } from "@src/server/queries.js",
+  entities: [TeamInvites]
 }
 
 /*

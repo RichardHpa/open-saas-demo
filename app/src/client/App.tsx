@@ -5,8 +5,11 @@ import AppNavBar from './components/AppNavBar';
 import { useMemo, useEffect, ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material';
+import { OnBoard } from './app/Onboard';
 
 const theme = createTheme();
+
+const appHiddenRoutes = ['/login', '/signup', '/email-verification'];
 
 /**
  * use this component to wrap all child components
@@ -17,7 +20,8 @@ export default function App({ children }: { children: ReactNode }) {
   const { data: user } = useAuth();
 
   const shouldDisplayAppNavBar = useMemo(() => {
-    return location.pathname !== '/' && location.pathname !== '/login' && location.pathname !== '/signup';
+    // return location.pathname !== '/' && location.pathname !== '/login' && location.pathname !== '/signup';
+    return !appHiddenRoutes.includes(location.pathname);
   }, [location]);
 
   const isAdminDashboard = useMemo(() => {
@@ -43,6 +47,14 @@ export default function App({ children }: { children: ReactNode }) {
       }
     }
   }, [location]);
+
+  if (user && user.onBoarded === false) {
+    return (
+      <ThemeProvider theme={theme}>
+        <OnBoard user={user} />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>
