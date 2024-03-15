@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { getTeam, useQuery, inviteTeamMember, sendVerificationEmail } from 'wasp/client/operations';
 
 import {
@@ -17,6 +18,8 @@ import {
   TextField,
 } from '@mui/material';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import { TeamChat } from './TeamChat';
+import { useSocket, useSocketListener, ServerToClientPayload, ClientToServerPayload } from 'wasp/client/webSocket';
 
 import type { RouteComponentProps } from 'react-router-dom';
 import type { FC } from 'react';
@@ -68,6 +71,24 @@ const TeamPage = (props: any) => {
   const { data: team, isLoading } = useQuery(getTeam, {
     teamId: parsedTeamId,
   });
+
+  const { socket, isConnected } = useSocket();
+  // console.log(isConnected);
+
+  useSocketListener('joinTeam', (res) => {
+    console.log('useSocketListener test', res);
+  });
+
+  // function logMessage(info: ServerToClientPayload<'joinTeam'>) {
+  //   console.log(info);
+  //   // setMessages((priorMessages) => [msg, ...priorMessages]);
+  // }
+
+  useEffect(() => {
+    if (!team) return;
+    console.log('joining team', team.team.id, user.username);
+    socket.emit('joinTeam', { teamId: team.team.id, username: user.username });
+  }, [team]);
 
   if (isLoading) {
     return <Container maxWidth='md'>Loading...</Container>;
@@ -148,7 +169,6 @@ const TeamPage = (props: any) => {
                   <TableBody>
                     {team.invitedMembers.map((member) => (
                       <TableRow key={member.id}>
-                        {/* <TableCell>{member.user.email || member.invitedUserEmail}</TableCell> */}
                         <TableCell>{member.invitedUserEmail}</TableCell>
                         <TableCell align='right'>
                           <Button
@@ -167,6 +187,10 @@ const TeamPage = (props: any) => {
               </TableContainer>
             </Box>
           )}
+
+          <Box>
+            <TeamChat user={user} team={team.team} />
+          </Box>
         </Stack>
       </Box>
     </Container>

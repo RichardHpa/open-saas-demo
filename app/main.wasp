@@ -78,6 +78,10 @@ app OpenSaaS {
       email: "richard.m.hpa@gmail.com" 
     },
   },
+  webSocket: {
+    fn: import { webSocketFn } from "@src/webSocket",
+    autoConnect: true, // optional, default: true
+  },
 }
 
 /* 💽 Wasp defines DB entities via Prisma Database Models: 
