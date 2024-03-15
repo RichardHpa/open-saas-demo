@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { getTeamChatMessages, useQuery } from 'wasp/client/operations';
+
+import dayjs from 'dayjs';
 
 import { Box, Grid, Paper, Typography, TextField, Stack, IconButton, Card } from '@mui/material';
 import { PaperAirplane as PaperAirplaneIcon } from '../icons/paper-airplane';
@@ -10,11 +13,26 @@ interface TeamChatProps {
   user: any;
   team: any;
 }
-// type SocketId = `teamChat-${string}`;
+
 export const TeamChat: FC<TeamChatProps> = ({ user, team }) => {
-  const socketId = `teamChat-${team.id}`;
+  const parsedTeamId = Number(team.id);
+
   const [messageText, setMessageText] = useState<ClientToServerPayload<'chatMessage'>>('');
   const [messages, setMessages] = useState<ServerToClientPayload<'chatMessage'>[]>([]);
+
+  const { data: teamMessages, isLoading } = useQuery(
+    getTeamChatMessages,
+    {
+      teamId: parsedTeamId,
+    },
+    {
+      onSuccess: (data: any) => {
+        setMessages(data.messages);
+      },
+    }
+  );
+
+  console.log('teamMessages:', teamMessages);
 
   // The "socket" instance is typed with the types you defined on the server.
   const { socket, isConnected } = useSocket();
@@ -24,18 +42,20 @@ export const TeamChat: FC<TeamChatProps> = ({ user, team }) => {
   useSocketListener('chatMessage', logMessage);
 
   function logMessage(msg: ServerToClientPayload<'chatMessage'>) {
+    console.log(msg);
     setMessages((priorMessages) => [msg, ...priorMessages]);
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    socket.emit('chatMessage', messageText, socketId);
+    socket.emit('chatMessage', messageText, team.id);
     setMessageText('');
   };
 
   const messageList = messages.map((msg) => {
     const yourMessage = msg.username === user.username;
+
     return (
       <Box key={msg.id}>
         <Stack direction={yourMessage ? 'row-reverse' : 'row'} alignItems={yourMessage ? 'flex-end' : 'flex-start'}>
@@ -57,6 +77,9 @@ export const TeamChat: FC<TeamChatProps> = ({ user, team }) => {
               <Typography variant='body2' sx={{ wordBreak: 'break-all' }}>
                 {msg.text}
               </Typography>
+              <Typography variant='body2' sx={{ wordBreak: 'break-all' }}>
+                <i>{dayjs(msg.createdAt).format('ddd, MMM D, YYYY h:mm A')}</i>
+              </Typography>
             </Stack>
           </Card>
         </Stack>
@@ -65,6 +88,10 @@ export const TeamChat: FC<TeamChatProps> = ({ user, team }) => {
   });
   const connectionIcon = isConnected ? '🟢' : '🔴';
 
+  if (isLoading) {
+    return <Paper>Loading...</Paper>;
+  }
+
   return (
     <Paper>
       <Box p={2}>
@@ -72,7 +99,6 @@ export const TeamChat: FC<TeamChatProps> = ({ user, team }) => {
 
         <Box sx={{ minHeight: 600, overflowY: 'scroll' }}>
           <Stack gap={2}>{messageList}</Stack>
-          {/* <ul>{messageList}</ul> */}
         </Box>
 
         <Box component='form' onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>

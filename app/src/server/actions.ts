@@ -15,6 +15,7 @@ import {
   type InviteTeamMember,
   type SendVerificationEmail,
   type AcceptTeamInvite,
+  type SendTeamChatMessage,
 } from 'wasp/server/operations';
 import Stripe from 'stripe';
 import type { GeneratedSchedule, StripePaymentResult } from '../shared/types';
@@ -598,4 +599,31 @@ export const acceptTeamInvite: AcceptTeamInvite = async (token: string, context:
     status: 'ACCEPTED',
     teamId: invite.teamId,
   };
+};
+
+export const sendTeamChatMessage: SendTeamChatMessage = async ({ message, teamId }, context: any) => {
+  if (!context.user) {
+    throw new HttpError(401);
+  }
+
+  const teamMember = await context.entities.TeamMember.findFirst({
+    where: {
+      teamId,
+      userId: context.user.id,
+    },
+  });
+
+  if (!teamMember) {
+    throw new HttpError(403, 'You are not a member of this team');
+  }
+
+  const teamChatMessage = await context.entities.TeamChatMessages.create({
+    data: {
+      message,
+      team: { connect: { id: teamId } },
+      user: { connect: { id: context.user.id } },
+    },
+  });
+
+  return teamChatMessage;
 };

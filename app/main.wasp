@@ -113,6 +113,7 @@ entity User {=psl
   teamMembers               TeamMember[]
   teamInvites               TeamInvites[]    @relation("InvidedUser")
   invitedBy                 TeamInvites[]    @relation("InvitedBy")
+  teamChatMessages          TeamChatMessages[]
 psl=}
 
 entity GptResponse {=psl
@@ -193,6 +194,7 @@ entity Team {=psl
   createdAt                 DateTime        @default(now())
   members                   TeamMember[]
   invites                   TeamInvites[]
+  teamChatMessages          TeamChatMessages[]
 psl=}
 
 entity TeamMember {=psl
@@ -219,6 +221,16 @@ entity TeamInvites {=psl
   createdAt                 DateTime        @default(now())
 psl=}
 
+
+entity TeamChatMessages {=psl
+  id                        String          @id @default(uuid())
+  message                   String
+  user                      User            @relation(fields: [userId], references: [id])
+  userId                    Int
+  team                      Team            @relation(fields: [teamId], references: [id])
+  teamId                    Int
+  createdAt                 DateTime        @default(now())
+psl=}
 
 
 /* 📡 These are the Wasp Routes (You can protect them easily w/ 'authRequired: true');
@@ -438,6 +450,11 @@ action acceptTeamInvite {
   entities: [User, Team, TeamMember, TeamInvites]
 }
 
+action sendTeamChatMessage {
+  fn: import { sendTeamChatMessage } from "@src/server/actions.js",
+  entities: [User, Team, TeamChatMessages]
+}
+
 // 📚 Queries
 
 query getGptResponses {
@@ -483,6 +500,11 @@ query getTeam {
 query getInvitesForUser {
   fn: import { getInvitesForUser } from "@src/server/queries.js",
   entities: [TeamInvites]
+}
+
+query getTeamChatMessages {
+  fn: import { getTeamChatMessages } from "@src/server/queries.js",
+  entities: [TeamChatMessages]
 }
 
 /*

@@ -72,17 +72,7 @@ const TeamPage = (props: any) => {
     teamId: parsedTeamId,
   });
 
-  const { socket, isConnected } = useSocket();
-  // console.log(isConnected);
-
-  useSocketListener('joinTeam', (res) => {
-    console.log('useSocketListener test', res);
-  });
-
-  // function logMessage(info: ServerToClientPayload<'joinTeam'>) {
-  //   console.log(info);
-  //   // setMessages((priorMessages) => [msg, ...priorMessages]);
-  // }
+  const { socket } = useSocket();
 
   useEffect(() => {
     if (!team) return;

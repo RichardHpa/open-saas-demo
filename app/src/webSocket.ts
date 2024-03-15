@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { getFirstProviderUserId } from 'wasp/auth';
 import { type WebSocketDefinition, type WaspSocketData } from 'wasp/server/webSocket';
 
+import { HttpError } from 'wasp/server';
+
 const rooms = {};
 
 export const webSocketFn: WebSocketFn = (io, context) => {
@@ -13,11 +15,23 @@ export const webSocketFn: WebSocketFn = (io, context) => {
       socket.join(`teamChat-${teamId}`);
     });
 
-    socket.on('chatMessage', async (msg, team) => {
-      io.sockets.to(team).emit('chatMessage', { id: uuidv4(), username, text: msg });
+    socket.on('chatMessage', async (msg, teamId) => {
+      io.sockets
+        .to(`teamChat-${teamId}`)
+        .emit('chatMessage', { id: uuidv4(), username, text: msg, createdAt: new Date() });
 
-      // You can also use your entities here:
-      // await context.entities.SomeEntity.create({ someField: msg })
+      if (socket.data.user) {
+        await context.entities.TeamChatMessages.create({
+          data: {
+            message: msg,
+            team: { connect: { id: teamId } },
+            user: { connect: { id: socket.data.user.id } },
+          },
+        });
+      } else {
+        console.log('No user found');
+        throw new HttpError(401);
+      }
     });
 
     socket.on('disconnect', () => {
@@ -33,19 +47,19 @@ export const webSocketFn: WebSocketFn = (io, context) => {
 // allows us to get type safety on the client as well
 
 type WebSocketFn = WebSocketDefinition<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
-type SocketId = `teamChat-${string}`;
+// type SocketId = `teamChat-${string}`;
 
 interface joinTeamPayload {
   teamId: number;
   username: string;
 }
 interface ServerToClientEvents {
-  chatMessage: (msg: { id: string; username: string; text: string }) => void;
+  chatMessage: (msg: { id: string; username: string; text: string; createdAt: Date }) => void;
   joinTeam: (user: { teamId: number; username: string }) => void;
 }
 
 interface ClientToServerEvents {
-  chatMessage: (msg: string, teamId: string) => void;
+  chatMessage: (msg: string, teamId: number) => void;
   joinTeam: (teamId: joinTeamPayload) => void;
 }
 

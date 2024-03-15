@@ -7,6 +7,7 @@ import {
   type File,
   type Team,
   type TeamInvites,
+  type TeamChatMessages,
 } from 'wasp/entities';
 import { HttpError } from 'wasp/server';
 import {
@@ -19,6 +20,7 @@ import {
   type GetAllTeamsForUser,
   type GetTeam,
   type GetInvitesForUser,
+  type GetTeamChatMessages,
 } from 'wasp/server/operations';
 import { getDownloadFileSignedURLFromS3 } from './file-upload/s3Utils.js';
 
@@ -290,4 +292,53 @@ export const getInvitesForUser: GetInvitesForUser<void, any[]> = async (_args, c
       team: true,
     },
   });
+};
+
+type GetTeamChatMessagesInput = {
+  teamId: number;
+};
+
+type formattedMessages = {
+  id: string;
+  username: string | null;
+  text: string;
+  createdAt: Date;
+};
+
+type GetTeamChatMessagesOutput = {
+  messages: formattedMessages[];
+};
+
+export const getTeamChatMessages: GetTeamChatMessages<GetTeamChatMessagesInput, GetTeamChatMessagesOutput> = async (
+  args,
+  context
+) => {
+  if (!context.user) {
+    throw new HttpError(401);
+  }
+
+  const messages = await context.entities.TeamChatMessages.findMany({
+    where: {
+      teamId: args.teamId,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+    take: 10,
+    include: {
+      user: true,
+    },
+  });
+
+  const formattedMessages = messages.map((message) => {
+    return {
+      id: message.id,
+      username: message.user.username,
+      text: message.message,
+      createdAt: message.createdAt,
+    };
+  });
+  return {
+    messages: formattedMessages,
+  };
 };
